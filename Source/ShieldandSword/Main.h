@@ -7,12 +7,24 @@
 #include "Main.generated.h"
 
 UENUM(BlueprintType)
-enum class EMovementStatus : int8
+enum class EMovementStatus : uint8
 {
 	EMS_Normal UMETA(DisplayName = "Normal"),
 	EMS_Sprint UMETA(DisplayName = "Sprint"),
 
 	EMS_MAX UMETA(DisplayName = "MAX"),
+
+};
+
+UENUM(BlueprintType)
+enum class EStaminaStatus : uint8
+{
+	ESS_Normal UMETA(DisplayName = "Normal"),
+	ESS_BelowMinimum UMETA(DisplayName = "BelowMinimum"),
+	ESS_Exhausted UMETA(DisplayName = "Exhausted"),
+	ESS_Recovering UMETA(DisplayName = "Recovering"),
+
+	ESS_MAX UMETA(DisplayName = "DefaultMax")
 };
 
 UCLASS()
@@ -21,14 +33,38 @@ class SHIELDANDSWORD_API AMain : public ACharacter
 	GENERATED_BODY()
 
 public:
+
 	// Sets default values for this character's properties
 	AMain();
+
+	/**
+	*
+	* TArray
+	*
+	*/
+	/*
+	TArray<FVector> PickupLocations;
+
+	UFUNCTION(BlueprintCallable)
+	void ShowPickupLocaitons();
+	*/
+
+	/**
+	*
+	* Enum
+	*
+	*/
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
 	EMovementStatus MovementStatus;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
+	EStaminaStatus StaminaStatus;
+
 	// Set movement status and running speed
 	void SetMovementStatus(EMovementStatus NewStatus);
+
+	FORCEINLINE void SetStaminaStatus(EStaminaStatus NewStaminaStatus) { StaminaStatus = NewStaminaStatus; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
 	float RunningSpeed;
@@ -36,6 +72,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
 	float SprintingSpeed;
 
+	bool bShiftKeyDown;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float StaminaDrainRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float MinSprintStamina;
+
+	// Pressed down to enable sprinting
+	void ShiftKeyDown();
+
+	// Released to stop sprinting
+	void ShiftKeyUp();
+
+	/**
+	*
+	* Components Settings
+	*
+	*/
 
 	// Positioning the camera behind the player
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"));

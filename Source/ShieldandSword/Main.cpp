@@ -6,13 +6,13 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
 AMain::AMain()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 
 	// Create CameraBoom // Pulls towards the player if there's a collision
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -52,10 +52,18 @@ AMain::AMain()
 	MaxStamina = 250.f;
 	Stamina = 90.f;
 	Coins = 0;
-
+	
 	RunningSpeed = 600.f;
 	SprintingSpeed = 900.f;
+	
+	bShiftKeyDown = false;
 
+	// Initialize Enums
+	MovementStatus = EMovementStatus::EMS_Normal;
+	StaminaStatus = EStaminaStatus::ESS_Normal;
+
+	StaminaDrainRate = 20.f;
+	MinSprintStamina = 50.f;
 }
 
 void AMain::SetMovementStatus(EMovementStatus NewStatus)
@@ -69,6 +77,16 @@ void AMain::SetMovementStatus(EMovementStatus NewStatus)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = RunningSpeed;
 	}
+}
+
+void AMain::ShiftKeyDown()
+{
+	bShiftKeyDown = true;
+}
+
+void AMain::ShiftKeyUp()
+{
+	bShiftKeyDown = false;
 }
 
 void AMain::DecrementHealth(float Amounth)
@@ -105,6 +123,94 @@ void AMain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	float DeltaStamina = StaminaDrainRate * DeltaTime;
+
+	switch (StaminaStatus)
+	{
+	case EStaminaStatus::ESS_Normal:
+		if (bShiftKeyDown)
+		{
+			if (Stamina - DeltaStamina <= MinSprintStamina)
+			{
+				Stamina -= DeltaStamina;
+				SetStaminaStatus(EStaminaStatus::ESS_BelowMinimum);
+			}
+			else
+			{
+				Stamina -= DeltaStamina;
+			}
+			SetMovementStatus(EMovementStatus::EMS_Sprint);
+		}
+		else // Shift key up
+		{
+			if (Stamina + DeltaStamina >= MaxStamina)
+			{
+				Stamina = MaxStamina;
+			}
+			else
+			{
+				Stamina += DeltaStamina;
+			}
+			SetMovementStatus(EMovementStatus::EMS_Normal);
+		}
+		break;
+	case EStaminaStatus::ESS_BelowMinimum:
+		if (bShiftKeyDown)
+		{
+			if (Stamina - DeltaStamina <= 0.f)
+			{
+				SetStaminaStatus(EStaminaStatus::ESS_Exhausted);
+				Stamina = 0.f;
+				SetMovementStatus(EMovementStatus::EMS_Normal);
+			}
+			else
+			{
+				Stamina -= DeltaStamina;
+				SetMovementStatus(EMovementStatus::EMS_Sprint);
+			}
+		}
+		else // Shift key up
+		{
+			if (Stamina + DeltaStamina >= MinSprintStamina) //
+			{
+				Stamina += DeltaStamina;
+				SetStaminaStatus(EStaminaStatus::ESS_Normal);
+			}
+			else
+			{
+				Stamina += DeltaStamina;
+			}
+			SetMovementStatus(EMovementStatus::EMS_Normal);
+		}
+		break;
+	case EStaminaStatus::ESS_Exhausted:
+		if (bShiftKeyDown)
+		{
+			Stamina = 0.f;
+		}
+		else // Shift key up
+		{
+			Stamina += DeltaStamina;
+			SetStaminaStatus(EStaminaStatus::ESS_Recovering);
+		}
+		SetMovementStatus(EMovementStatus::EMS_Normal);
+		break;
+	case EStaminaStatus::ESS_Recovering:
+		if (Stamina + DeltaStamina >= MinSprintStamina)
+		{
+			Stamina += DeltaStamina;
+			SetStaminaStatus(EStaminaStatus::ESS_Normal);
+		}
+		else
+		{
+			Stamina += DeltaStamina;
+		}
+		SetMovementStatus(EMovementStatus::EMS_Normal);
+		break;
+	default:
+		break;
+	}
+
 }
 
 // Called to bind functionality to input
@@ -116,6 +222,9 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
+
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -124,8 +233,6 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-
-
 
 
 }
@@ -172,3 +279,12 @@ void AMain::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+/*
+void AMain::ShowPickupLocaitons()
+{
+	for (int32 i = 0; i < PickupLocations.Num(); i++)
+	{
+		UKismetSystemLibrary::DrawDebugSphere(this, PickupLocations[i], 25.f, 12, FLinearColor::White, 10.f, 1.f);
+	}
+}
+*/
