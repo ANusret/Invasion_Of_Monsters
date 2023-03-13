@@ -166,4 +166,10 @@ public:
 
 	FORCEINLINE class UCameraComponent* GetCamera() const { return FollowCamera; }
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Items")
+	class AWeapon* EquippedWeapon;
+	
+	FORCEINLINE void SetEquippedWeapon(AWeapon* WeaponTemp) { EquippedWeapon = WeaponTemp; }
+
+
 };
