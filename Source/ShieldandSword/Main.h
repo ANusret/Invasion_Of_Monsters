@@ -162,14 +162,30 @@ public:
 	*/
 	void LookUpAtRate(float Rate);
 
+	bool bDropEqiupDown;
+	void DropEquipDown();
+	void DropEquipUp();
+
+	bool bLMBDown;
+	void LMBDown();
+	void LMBUp();
+
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
 	FORCEINLINE class UCameraComponent* GetCamera() const { return FollowCamera; }
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Items")
 	class AWeapon* EquippedWeapon;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Items")
+	class AItem* ActiveOverlappingItem;
 	
-	FORCEINLINE void SetEquippedWeapon(AWeapon* WeaponTemp) { EquippedWeapon = WeaponTemp; }
+	void SetEquippedWeapon(AWeapon* WeaponTemp);
+	FORCEINLINE AWeapon* GetEquippedWeapon() { return EquippedWeapon; }
+
+	FORCEINLINE void SetActiveOverlappingItem(AItem* ItemTemp) { ActiveOverlappingItem = ItemTemp; }
+
+
 
 
 };

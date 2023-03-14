@@ -7,6 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Weapon.h"
 
 // Sets default values
 AMain::AMain()
@@ -57,6 +58,10 @@ AMain::AMain()
 	SprintingSpeed = 900.f;
 	
 	bShiftKeyDown = false;
+
+	bDropEqiupDown = false;
+
+	bLMBDown = false;
 
 	// Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
@@ -225,6 +230,12 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
 
+	PlayerInputComponent->BindAction("DropEquip", IE_Pressed, this, &AMain::DropEquipDown);
+	PlayerInputComponent->BindAction("DropEquip", IE_Released, this, &AMain::DropEquipUp);
+
+	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
+	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
+
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -277,6 +288,45 @@ void AMain::TurnAtRate(float Rate)
 void AMain::LookUpAtRate(float Rate)
 {
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+void AMain::DropEquipDown()
+{
+	bDropEqiupDown = true;
+	if (ActiveOverlappingItem)
+	{
+		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem);
+		if (Weapon)
+		{
+			Weapon->Equip(this);
+			SetActiveOverlappingItem(nullptr);
+		}
+	}
+}
+
+void AMain::DropEquipUp()
+{
+	bDropEqiupDown = false;
+}
+
+void AMain::LMBDown()
+{
+	bLMBDown = true;
+}
+
+void AMain::LMBUp()
+{
+	bLMBDown = false;
+}
+
+void AMain::SetEquippedWeapon(AWeapon* WeaponTemp)
+{
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->Destroy();
+	}
+
+	EquippedWeapon = WeaponTemp;
 }
 
 /*
