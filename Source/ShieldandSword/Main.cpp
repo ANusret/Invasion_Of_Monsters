@@ -8,6 +8,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Weapon.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
 
 // Sets default values
 AMain::AMain()
@@ -94,6 +96,52 @@ void AMain::ShiftKeyUp()
 	bShiftKeyDown = false;
 }
 
+void AMain::Attack()
+{
+	
+	if (!bAttacking)
+	{
+		bAttacking = true;
+
+		UAnimInstance* AnimationInstance = GetMesh()->GetAnimInstance();
+		if (AnimationInstance && CombatMontage)
+		{
+			int32 Random = FMath::RandRange(0, 2);
+			switch (Random)
+			{
+			case 0:
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_JumpToSection(FName("Attack_1"), CombatMontage);
+				break;
+			case 1:
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_JumpToSection(FName("Attack_2"), CombatMontage);
+				break;
+			case 2:
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_JumpToSection(FName("Attack_3"), CombatMontage);
+				break;
+			default:
+				break;
+			}
+			
+		}
+
+	}
+
+	
+	
+}
+
+void AMain::EndAttack()
+{
+	bAttacking = false;
+	if (bLMBDown)
+	{
+		Attack();
+	}
+}
+
 void AMain::DecrementHealth(float Amounth)
 {
 	if (Health - Amounth <= 0.f)
@@ -176,7 +224,7 @@ void AMain::Tick(float DeltaTime)
 		}
 		else // Shift key up
 		{
-			if (Stamina + DeltaStamina >= MinSprintStamina) //
+			if (Stamina + DeltaStamina >= MinSprintStamina)
 			{
 				Stamina += DeltaStamina;
 				SetStaminaStatus(EStaminaStatus::ESS_Normal);
@@ -250,7 +298,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AMain::MoveForward(float Value)
 {
-	if (Controller != nullptr && Value != 0)
+	if ((Controller != nullptr) && (Value != 0) && (!bAttacking))
 	{
 		/** returns a rotator that gives you the direction 
 		* that the controllers facing this frame 
@@ -266,7 +314,7 @@ void AMain::MoveForward(float Value)
 
 void AMain::MoveRight(float Value)
 {
-	if (Controller != nullptr && Value != 0)
+	if ((Controller != nullptr) && (Value != 0) && (!bAttacking))
 	{
 		/** returns a rotator that gives you the direction
 		* that the controllers facing this frame 
@@ -293,6 +341,7 @@ void AMain::LookUpAtRate(float Rate)
 void AMain::DropEquipDown()
 {
 	bDropEqiupDown = true;
+
 	if (ActiveOverlappingItem)
 	{
 		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem);
@@ -302,6 +351,7 @@ void AMain::DropEquipDown()
 			SetActiveOverlappingItem(nullptr);
 		}
 	}
+	
 }
 
 void AMain::DropEquipUp()
@@ -312,6 +362,12 @@ void AMain::DropEquipUp()
 void AMain::LMBDown()
 {
 	bLMBDown = true;
+
+	
+	if (EquippedWeapon)
+	{
+		Attack();
+	}
 }
 
 void AMain::LMBUp()

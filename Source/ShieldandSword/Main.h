@@ -108,6 +108,23 @@ public:
 
 	/**
 	*
+	* Attack
+	*
+	*/
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animations")
+	bool bAttacking;
+
+	void Attack();
+
+	UFUNCTION(BlueprintCallable)
+	void EndAttack();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+	class UAnimMontage* CombatMontage;
+
+	/**
+	*
 	* Player Stats
 	* 
 	*/
