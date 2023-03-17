@@ -110,15 +110,15 @@ void AMain::Attack()
 			switch (Random)
 			{
 			case 0:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_1"), CombatMontage);
 				break;
 			case 1:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_2"), CombatMontage);
 				break;
 			case 2:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_3"), CombatMontage);
 				break;
 			default:
@@ -129,8 +129,6 @@ void AMain::Attack()
 
 	}
 
-	
-	
 }
 
 void AMain::EndAttack()
