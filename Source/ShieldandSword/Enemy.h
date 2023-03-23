@@ -40,6 +40,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	class AAIController* AIController;
 
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
