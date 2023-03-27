@@ -112,7 +112,7 @@ public:
 	*
 	*/
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animations")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation")
 	bool bAttacking;
 
 	void Attack();
@@ -120,8 +120,27 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void EndAttack();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
 	class UAnimMontage* CombatMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+	class UParticleSystem* MainHitParticle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+	class USoundCue* MainHitSound;
+
+	float InterpSpeed;
+
+	bool bInterpToEnemy;
+
+	void SetInterpToEnemy(bool Interp);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	class AEnemy* CombatTarget;
+
+	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
+
+	FRotator GetLookAtRotationYaw(FVector Target);
 
 	/**
 	*
@@ -145,6 +164,11 @@ public:
 	int32 Coins;
 
 	void DecrementHealth(float Amounth);
+
+	virtual float TakeDamage(float DamageAmount,
+		struct FDamageEvent const & DamageEvent,
+		class AController * EventInstigator,
+		AActor * DamageCauser) override;
 
 	void Die();
 
@@ -202,7 +226,10 @@ public:
 
 	FORCEINLINE void SetActiveOverlappingItem(AItem* ItemTemp) { ActiveOverlappingItem = ItemTemp; }
 
+	UFUNCTION(BlueprintCallable)
+	void PlaySwingSound();
 
-
+	UFUNCTION(BlueprintCallable)
+	void DeathEnd();
 
 };

@@ -6,6 +6,14 @@
 #include "AIController.h"
 #include "Main.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
+#include "Components/BoxComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMeshSocket.h"
+#include "Animation/AnimInstance.h"
+#include "TimerManager.h"
+#include "Components/CapsuleComponent.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -21,7 +29,52 @@ AEnemy::AEnemy()
 	CombatSphere->SetupAttachment(GetRootComponent());
 	CombatSphere->InitSphereRadius(85.f);
 
+	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
+	CombatCollision->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("CombatSocket"));
 
+	Health = 75.f;
+	MaxHealth = 100.f;
+	Damage = 10.f;
+
+	bOverlappingCombatSphere = false;
+
+	AttackMinTime = 0.5f;
+	AttackMaxTime = 3.5f;
+
+	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
+
+	DeathDelay = 5.f;
+
+}
+
+float AEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (Health - DamageAmount <= 0.f)
+	{
+		Health = 0;
+		Die();
+	}
+	else
+	{
+		Health -= DamageAmount;
+	}
+	return DamageAmount;
+}
+
+void AEnemy::Die()
+{
+	UAnimInstance* AnimationInstance = GetMesh()->GetAnimInstance();
+	if (AnimationInstance && EnemyCombatMontage)
+	{
+		AnimationInstance->Montage_Play(EnemyCombatMontage, 1.f);
+		AnimationInstance->Montage_JumpToSection(FName("Death"));
+	}
+	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
+
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TriggerSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 // Called when the game starts or when spawned
@@ -37,6 +90,13 @@ void AEnemy::BeginPlay()
 	CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
 	CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
 
+	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatCollisionOnOverlapBegin);
+	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatCollisionOnOverlapEnd);
+
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
 }
 
@@ -56,7 +116,7 @@ void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AEnemy::TriggerSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (OtherActor)
+	if (OtherActor && Alive())
 	{
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
@@ -84,12 +144,15 @@ void AEnemy::TriggerSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent,
 
 void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (OtherActor)
+	if (OtherActor && Alive())
 	{
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+			Main->SetCombatTarget(this);
+			bOverlappingCombatSphere = true;
+			CombatTarget = Main;
+			Attack();
 		}
 	}
 }
@@ -101,8 +164,17 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
-			MoveToTarget(Main);
+			if (Main->CombatTarget == this)
+			{
+				Main->SetCombatTarget(nullptr);
+			}
+			bOverlappingCombatSphere = false; 
+			if (EnemyMovementStatus != EEnemyMovementStatus::EMS_Attacking)
+			{
+				MoveToTarget(Main);
+				CombatTarget = nullptr;
+			}
+			GetWorldTimerManager().ClearTimer(AttackTimer);
 		}
 	}
 }
@@ -136,5 +208,104 @@ void AEnemy::MoveToTarget(AMain* Target)
 		}
 		*/
 	}
+}
+
+void AEnemy::CombatCollisionOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor)
+	{
+		AMain* Main = Cast<AMain>(OtherActor);
+		if (Main)
+		{
+			if (Main->MainHitParticle)
+			{
+				const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
+				if (TipSocket)
+				{
+					FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->MainHitParticle, SocketLocation, FRotator(0.f), false);
+				}
+
+			}
+			if (Main->MainHitSound)
+			{
+				UGameplayStatics::PlaySound2D(this, Main->MainHitSound);
+			}
+			// This method calls the TakeDamage method on the Main. 
+			if (DamageTypeClass)
+			{
+				UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass); 
+			}
+		}
+	}
+}
+
+void AEnemy::CombatCollisionOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+}
+
+void AEnemy::EndAttack()
+{
+	bAttacking = false;
+	if (bOverlappingCombatSphere)
+	{
+		float AttackTime = FMath::FRandRange(AttackMinTime, AttackMaxTime);
+		GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy::Attack, AttackTime);
+	}
+}
+
+void AEnemy::ActivateCollision()
+{
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	if (SwingSound)
+	{
+		UGameplayStatics::PlaySound2D(this, SwingSound);
+	}
+}
+
+void AEnemy::DeactivateCollision()
+{
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+void AEnemy::Attack()
+{
+	if (Alive())
+	{
+		if (AIController)
+		{
+			AIController->StopMovement();
+			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+		}
+		if (!bAttacking)
+		{
+			bAttacking = true;
+			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+			if (AnimInstance)
+			{
+				AnimInstance->Montage_Play(EnemyCombatMontage, 1.35f);
+				AnimInstance->Montage_JumpToSection(FName("Attack"), EnemyCombatMontage);
+			}
+
+		}
+	}
+}
+
+void AEnemy::DeathEnd()
+{
+	GetMesh()->bPauseAnims = true;
+	GetMesh()->bNoSkeletonUpdate = true;
+
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::Disappear, DeathDelay);
+}
+
+bool AEnemy::Alive()
+{
+	return GetEnemyMovementStatus() != EEnemyMovementStatus::EMS_Dead;
+}
+
+void AEnemy::Disappear()
+{
+	Destroy();
 }
 
