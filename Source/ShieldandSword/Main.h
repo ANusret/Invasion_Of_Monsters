@@ -11,6 +11,7 @@ enum class EMovementStatus : uint8
 {
 	EMS_Normal UMETA(DisplayName = "Normal"),
 	EMS_Sprint UMETA(DisplayName = "Sprint"),
+	EMS_Dead UMETA(DisplayName = "Dead"),
 
 	EMS_MAX UMETA(DisplayName = "MAX"),
 
@@ -86,9 +87,12 @@ public:
 	// Released to stop sprinting
 	void ShiftKeyUp();
 
+	bool bMovingForward;
+	bool bMovingRight;
+
 	/**
 	*
-	* Components Settings
+	* Camera Components Settings
 	*
 	*/
 
@@ -142,6 +146,14 @@ public:
 
 	FRotator GetLookAtRotationYaw(FVector Target);
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	bool bHasCombatTarget;
+
+	FORCEINLINE void SetHasCombatTarget(bool HasCombatTarget) { bHasCombatTarget = HasCombatTarget; }
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	FVector CombatTargetLocation;
+
 	/**
 	*
 	* Player Stats
@@ -173,6 +185,15 @@ public:
 	void Die();
 
 	void DecrementCoin(int32 Amounth);
+
+	/**
+	*
+	* Player Controller
+	*
+	*/
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Controller")
+	class AMainPlayerController* MainPlayerController;
 
 protected:
 	// Called when the game starts or when spawned
@@ -231,5 +252,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DeathEnd();
+
+	virtual void Jump() override;
 
 };

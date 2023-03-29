@@ -14,6 +14,7 @@
 #include "Animation/AnimInstance.h"
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
+#include "MainPlayerController.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -32,7 +33,7 @@ AEnemy::AEnemy()
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("CombatSocket"));
 
-	Health = 75.f;
+	Health = 100.f;
 	MaxHealth = 100.f;
 	Damage = 10.f;
 
@@ -44,6 +45,8 @@ AEnemy::AEnemy()
 	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
 
 	DeathDelay = 5.f;
+
+	bHasValidTarget = false;
 
 }
 
@@ -66,8 +69,8 @@ void AEnemy::Die()
 	UAnimInstance* AnimationInstance = GetMesh()->GetAnimInstance();
 	if (AnimationInstance && EnemyCombatMontage)
 	{
-		AnimationInstance->Montage_Play(EnemyCombatMontage, 1.f);
-		AnimationInstance->Montage_JumpToSection(FName("Death"));
+		AnimationInstance->Montage_Play(EnemyCombatMontage, 0.8f);
+		AnimationInstance->Montage_JumpToSection(FName("Death"), EnemyCombatMontage);
 	}
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
 
@@ -121,6 +124,7 @@ void AEnemy::TriggerSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponen
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
+			// SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
 			MoveToTarget(Main);
 		}
 	}
@@ -133,6 +137,16 @@ void AEnemy::TriggerSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent,
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
+			bHasValidTarget = false;
+			if (Main->CombatTarget == this)
+			{
+				Main->SetCombatTarget(nullptr);
+			}
+			Main->SetHasCombatTarget(false);
+			if (Main->MainPlayerController)
+			{
+				Main->MainPlayerController->RemoveEnemyHealthBar();
+			}
 			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
 			if (AIController)
 			{
@@ -149,9 +163,16 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
+			bHasValidTarget = true;
 			Main->SetCombatTarget(this);
+			Main->SetHasCombatTarget(true);
+			if (Main->MainPlayerController)
+			{
+				Main->MainPlayerController->DisplayEnemyHealthBar();
+			}
 			bOverlappingCombatSphere = true;
 			CombatTarget = Main;
+			// SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
 			Attack();
 		}
 	}
@@ -164,16 +185,17 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			if (Main->CombatTarget == this)
-			{
-				Main->SetCombatTarget(nullptr);
-			}
-			bOverlappingCombatSphere = false; 
+			bOverlappingCombatSphere = false;
+			// SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
+			MoveToTarget(Main);
+			CombatTarget = nullptr;
+			/*
 			if (EnemyMovementStatus != EEnemyMovementStatus::EMS_Attacking)
 			{
 				MoveToTarget(Main);
 				CombatTarget = nullptr;
 			}
+			*/
 			GetWorldTimerManager().ClearTimer(AttackTimer);
 		}
 	}
@@ -270,7 +292,7 @@ void AEnemy::DeactivateCollision()
 
 void AEnemy::Attack()
 {
-	if (Alive())
+	if (Alive() && bHasValidTarget)
 	{
 		if (AIController)
 		{

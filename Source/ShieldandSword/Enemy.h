@@ -98,6 +98,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float DeathDelay;
 
+	bool bHasValidTarget;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
