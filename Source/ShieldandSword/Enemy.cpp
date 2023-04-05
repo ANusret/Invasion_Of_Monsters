@@ -31,7 +31,7 @@ AEnemy::AEnemy()
 	CombatSphere->InitSphereRadius(85.f);
 
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
-	CombatCollision->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("CombatSocket"));
+	CombatCollision->SetupAttachment(GetMesh(), FName("CombatSocket"));
 
 	Health = 100.f;
 	MaxHealth = 100.f;

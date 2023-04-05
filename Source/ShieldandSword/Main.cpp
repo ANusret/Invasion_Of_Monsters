@@ -124,15 +124,15 @@ void AMain::Attack()
 			switch (Random)
 			{
 			case 0:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 6.f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_1"), CombatMontage);
 				break;
 			case 1:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 6.f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_2"), CombatMontage);
 				break;
 			case 2:
-				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 2.3f, true);
+				AnimationInstance->Montage_Play(CombatMontage, 1.f, EMontagePlayReturnType::MontageLength, 8.f, true);
 				AnimationInstance->Montage_JumpToSection(FName("Attack_3"), CombatMontage);
 				break;
 			default:
@@ -239,6 +239,19 @@ void AMain::Tick(float DeltaTime)
 	if (MovementStatus == EMovementStatus::EMS_Dead) return;
 
 	float DeltaStamina = StaminaDrainRate * DeltaTime;
+
+
+	if (MovementStatus != EMovementStatus::EMS_Dead)
+	{
+		if (CombatTarget == nullptr)
+		{
+			if (Health <= 90.f)
+			{
+				Health += 0.01f;
+			}
+		}
+	}
+	
 
 	switch (StaminaStatus)
 	{
